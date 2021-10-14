@@ -89,7 +89,7 @@ class DetailViewController: UIViewController {
         // baseExperience
         let baseExperience = "Base Experience"
         items.append(Item(title: baseExperience, description: "\(pokemon.baseExperience)"))
-
+        
         return items
     }()
 

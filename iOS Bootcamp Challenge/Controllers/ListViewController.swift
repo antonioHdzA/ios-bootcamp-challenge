@@ -27,7 +27,16 @@ class ListViewController: UICollectionViewController {
     private var isFirstLauch: Bool = true
 
     // TODO: Add a loading indicator when the app first launches and has no pokemons
-
+    private func LoadingIndicator(){
+        if SVProgressHUD.isVisible() {
+            SVProgressHUD.dismiss()
+        }
+        else {
+            SVProgressHUD.show()
+        }
+        
+    }
+    
     private var shouldShowLoader: Bool = true
 
     override func viewDidLoad() {
@@ -52,6 +61,7 @@ class ListViewController: UICollectionViewController {
         // Set up the searchController parameters.
         navigationItem.searchController = searchController
         definesPresentationContext = true
+        LoadingIndicator()
 
         refresh()
     }
@@ -72,7 +82,7 @@ class ListViewController: UICollectionViewController {
     }
 
     // MARK: - UISearchViewController
-
+    
     private func filterContentForSearchText(_ searchText: String) {
         // filter with a simple contains searched text
         resultPokemons = pokemons
@@ -87,7 +97,7 @@ class ListViewController: UICollectionViewController {
     }
 
     // TODO: Implement the SearchBar
-
+    
     // MARK: - UICollectionViewDataSource
 
     override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -105,7 +115,16 @@ class ListViewController: UICollectionViewController {
     // MARK: - Navigation
 
     // TODO: Handle navigation to detail view controller
-
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        guard
+            let indexSelectedItem = collectionView.indexPathsForSelectedItems?.first
+        else { return }
+        guard
+            let detailView = segue.destination as? DetailViewController
+        else { return }
+        detailView.pokemon = resultPokemons[indexSelectedItem.item]
+    }
+    
     // MARK: - UI Hooks
 
     @objc func refresh() {
@@ -114,18 +133,24 @@ class ListViewController: UICollectionViewController {
         var pokemons: [Pokemon] = []
 
         // TODO: Wait for all requests to finish before updating the collection view
-
+        let requestsDispatchGroup = DispatchGroup()
         PokeAPI.shared.get(url: "pokemon?limit=30", onCompletion: { (list: PokemonList?, _) in
             guard let list = list else { return }
             list.results.forEach { result in
+                requestsDispatchGroup.enter()
                 PokeAPI.shared.get(url: "/pokemon/\(result.id)/", onCompletion: { (pokemon: Pokemon?, _) in
                     guard let pokemon = pokemon else { return }
                     pokemons.append(pokemon)
-                    self.pokemons = pokemons
-                    self.didRefresh()
+                    requestsDispatchGroup.leave()
                 })
+                requestsDispatchGroup.notify(queue: .main) {
+                    self.pokemons = pokemons
+                    self.LoadingIndicator()
+                    self.didRefresh()
+                }
             }
         })
+        
     }
 
     private func didRefresh() {
